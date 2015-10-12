@@ -223,7 +223,7 @@ env.age_critical 86400 " >> /etc/munin/plugin-conf.d/munin-node
 
 sudo service munin-node restart
 
-sed -e "s/^\ *Allow from localhost 127.0.0.0\/8 ::1/Allow from all\nRequire all granted/" /etc/munin/apache.conf > /tmp/munin.con
+sed -e "s/^\ *Allow from localhost 127.0.0.0\/8 ::1/Allow from all\nRequire all granted/" /etc/munin/apache.conf > /tmp/munin.conf
 sudo mv /tmp/munin.conf /etc/munin/apache.conf
 sudo chown munin.munin /etc/munin/apache.conf
 sudo service apache2 restart
