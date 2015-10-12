@@ -9,6 +9,7 @@ utf8Language=en_GB
 # Several option groups here, comment in / out as necessary
 # Localhost
 websiteurl=nominatim.localhost
+urlsuffix=/nominatim/
 emailcontact=nominatim@localhost
 # CycleStreets
 #websiteurl=nominatim.cyclestreets.net

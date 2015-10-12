@@ -9,6 +9,8 @@
 # !! Marker #idempotent indicates limit of testing for idempotency - it has not yet been possible to make it fully idempotent.
 
 # Announce start
+export DEBIAN_FRONTEND=noninteractive
+set -x
 echo "#	$(date)	Nominatim installation"
 
 # Ensure this script is run as root
@@ -72,53 +74,57 @@ else
     osmupdates=${geofabrikUrl}${osmdatafolder}${osmdatacountry}-updates
 fi
 
+echo "# downloading data: $(osmdatafilename)"
+
 # Where the downloaded data is stored
 osmdatapath=data/${osmdatafolder}${osmdatafilename}
 
 ## Osmosis
 # Rather than the packaged version get the latest
-osmosisBinary=/usr/local/bin/osmosis
-
-# Check Osmosis has been installed
-if [ ! -L "${osmosisBinary}" ]; then
-
-    # Announce Osmosis installation
-    # !! Osmosis uses MySQL and that needs to be configured to use character_set_server=utf8 and collation_server=utf8_unicode_ci which is currently set up (machine wide) by CycleStreets website installation.
-    echo "#	$(date)	CycleStreets / Osmosis installation"
-
-    # Prepare the apt index
-    apt-get update > /dev/null
-
-    # Osmosis requires java
-    apt-get -y install openjdk-7-jre
-
-    # Create folder
-    mkdir -p /usr/local/osmosis
-
-    # wget the latest to here
-    if [ ! -e /usr/local/osmosis/osmosis-latest.tgz ]; then
-	wget -O /usr/local/osmosis/osmosis-latest.tgz http://dev.openstreetmap.org/~bretth/osmosis-build/osmosis-latest.tgz
-    fi
-
-    # Create a folder for the new version
-    mkdir -p /usr/local/osmosis/osmosis-latest
-
-    # Unpack into it
-    tar xzf /usr/local/osmosis/osmosis-latest.tgz -C /usr/local/osmosis/osmosis-latest
-
-    # Remove the download archive
-    rm -f /usr/local/osmosis/osmosis-latest.tgz
-
-    # Repoint current to the new install
-    rm -f /usr/local/osmosis/current
-
-    # Link to it
-    ln -s /usr/local/osmosis/osmosis-latest/bin/osmosis ${osmosisBinary}
-
-    # Announce completion
-    echo "#	Completed installation of osmosis"
-fi
-
+#osmosisBinary=/usr/local/bin/osmosis
+osmosisBinary=`which osmosis`
+echo "Osmosis found at: ${osmosisBinary}"
+#
+## Check Osmosis has been installed
+#if [ ! -L "${osmosisBinary}" ]; then
+#
+#    # Announce Osmosis installation
+#    # !! Osmosis uses MySQL and that needs to be configured to use character_set_server=utf8 and collation_server=utf8_unicode_ci which is currently set up (machine wide) by CycleStreets website installation.
+#    echo "#	$(date)	CycleStreets / Osmosis installation"
+#
+#    # Prepare the apt index
+#    apt-get update > /dev/null
+#
+#    # Osmosis requires java
+#    apt-get -y install openjdk-7-jre libexpat1-dev lua5.2 liblua5.2-dev
+#
+#    # Create folder
+#    mkdir -p /usr/local/osmosis
+#
+#    # wget the latest to here
+#    if [ ! -e /usr/local/osmosis/osmosis-latest.tgz ]; then
+#	wget -O /usr/local/osmosis/osmosis-latest.tgz http://dev.openstreetmap.org/~bretth/osmosis-build/osmosis-latest.tgz
+#    fi
+#
+#    # Create a folder for the new version
+#    mkdir -p /usr/local/osmosis/osmosis-latest
+#
+#    # Unpack into it
+#    tar xzf /usr/local/osmosis/osmosis-latest.tgz -C /usr/local/osmosis/osmosis-latest
+#
+#    # Remove the download archive
+#    rm -f /usr/local/osmosis/osmosis-latest.tgz
+#
+#    # Repoint current to the new install
+#    rm -f /usr/local/osmosis/current
+#
+#    # Link to it
+#    ln -s /usr/local/osmosis/osmosis-latest/bin/osmosis ${osmosisBinary}
+#
+#    # Announce completion
+#    echo "#	Completed installation of osmosis"
+#fi
+#
 
 ### MAIN PROGRAM ###
 
@@ -156,7 +162,7 @@ else
 fi
 
 # Prepare the apt index; it may be practically non-existent on a fresh VM
-apt-get update
+apt-get update > /dev/null
 
 # Install basic software
 apt-get -y install sudo wget
@@ -166,7 +172,8 @@ apt-get -y install sudo wget
 apt-get -y install build-essential libxml2-dev libgeos-dev libpq-dev libbz2-dev libtool automake libproj-dev
 apt-get -y install libboost-dev libboost-system-dev libboost-filesystem-dev libboost-thread-dev
 # Note: osmosis is removed from this next line (compared to wiki page) as it is installed directly
-apt-get -y install gcc proj-bin libgeos-c1 libgeos++-dev
+apt-get -y install gcc proj-bin libgeos-c1 osmosis libgeos++-dev
+# apt-get -y install gcc proj-bin libgeos-c1 libgeos++-dev
 apt-get -y install php5 php-pear php5-pgsql php5-json php-db
 apt-get -y install postgresql postgis postgresql-contrib postgresql-9.3-postgis-2.1 postgresql-server-dev-9.3
 apt-get -y install libprotobuf-c0-dev protobuf-c-compiler
@@ -175,10 +182,10 @@ apt-get -y install libprotobuf-c0-dev protobuf-c-compiler
 # bc is needed in configPostgresql.sh
 apt-get -y install bc apache2 git autoconf-archive
 
-# Install gdal, needed for US Tiger house number data
-# !! More steps need to be added to this script to support that US data
-echo "#	$(date)	Installing gdal"
-apt-get -y install python-gdal
+## Install gdal, needed for US Tiger house number data
+## !! More steps need to be added to this script to support that US data
+#echo "#	$(date)	Installing gdal"
+#apt-get -y install python-gdal
 
 # Skip if doing a Docker install as kernel parameters cannot be modified
 if [ -z "${dockerInstall}" ]; then
@@ -191,17 +198,17 @@ fi
 echo "#	$(date)	Restarting PostgreSQL"
 service postgresql restart
 
-# Nominatim munin
-# !! Look at the comments at the top of the nominatim_importlag file in the following and copy the setup section to a new file in: /etc/munin/plugin-conf.d/
-ln -s '/home/nominatim/Nominatim/munin/nominatim_importlag' '/etc/munin/plugins/nominatim_importlag'
-ln -s '/home/nominatim/Nominatim/munin/nominatim_query_speed' '/etc/munin/plugins/nominatim_query_speed'
-ln -s '/home/nominatim/Nominatim/munin/nominatim_nominatim_requests' '/etc/munin/plugins/nominatim_nominatim_requests'
-
-
-# Needed to help postgres munin charts work
-apt-get -y install libdbd-pg-perl
-munin-node-configure --shell | grep postgres | sh
-service munin-reload restart
+## Nominatim munin
+## !! Look at the comments at the top of the nominatim_importlag file in the following and copy the setup section to a new file in: /etc/munin/plugin-conf.d/
+#ln -s '/home/nominatim/Nominatim/munin/nominatim_importlag' '/etc/munin/plugins/nominatim_importlag'
+#ln -s '/home/nominatim/Nominatim/munin/nominatim_query_speed' '/etc/munin/plugins/nominatim_query_speed'
+#ln -s '/home/nominatim/Nominatim/munin/nominatim_nominatim_requests' '/etc/munin/plugins/nominatim_nominatim_requests'
+#
+#
+## Needed to help postgres munin charts work
+#apt-get -y install libdbd-pg-perl
+#munin-node-configure --shell | grep postgres | sh
+#service munin-reload restart
 
 
 # We will use the Nominatim user's homedir for the installation, so switch to that
@@ -212,24 +219,29 @@ cd /home/${username}
 
 # Get Nominatim software
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Obtaining_the_Latest_Version
-if [ ! -d "/home/${username}/Nominatim/.git" ]; then
-    # Install
-    echo "#	$(date)	Installing Nominatim software"
-    sudo -u ${username} git clone --recursive https://github.com/twain47/Nominatim.git
-    cd Nominatim
-else
-    # Update
-    echo "#	$(date)	Updating Nominatim software"
-    cd Nominatim
-    sudo -u ${username} git pull
-    # Some of the schema is created by osm2pgsql which is updated by:
-    sudo -u ${username} git submodule update --init
-fi
+#if [ ! -d "/home/${username}/Nominatim/.git" ]; then
+#    # Install
+#    echo "#	$(date)	Installing Nominatim software"
+#    sudo -u ${username} git clone --recursive https://github.com/twain47/Nominatim.git
+#    cd Nominatim
+#else
+#    # Update
+#    echo "#	$(date)	Updating Nominatim software"
+#    cd Nominatim
+#    sudo -u ${username} git pull
+#    # Some of the schema is created by osm2pgsql which is updated by:
+#    sudo -u ${username} git submodule update --init
+#fi
+
+echo "# Fetching nominatim"
+wget http://www.nominatim.org/release/Nominatim-2.4.0.tar.bz2
+tar xvf Nominatim-2.4.0.tar.bz2
+cd Nominatim
 
 # Compile Nominatim software
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Compiling_the_Source
 echo "#	$(date)	Compiling Nominatim software"
-sudo -u ${username} ./autogen.sh
+#sudo -u ${username} ./autogen.sh
 sudo -u ${username} ./configure
 sudo -u ${username} make
 
@@ -248,7 +260,7 @@ cat > ${localNominatimSettings} << EOF
    @define('CONST_Osmosis_Binary', '${osmosisBinary}');
 
    // Website settings
-   @define('CONST_Website_BaseURL', 'http://${websiteurl}/');
+   @define('CONST_Website_BaseURL', '${urlsuffix}');
 EOF
 
 # By default, Nominatim is configured to update using the global minutely diffs
@@ -282,9 +294,9 @@ if test -n "${includeWikipedia}" -a ! -r data/wikipedia_redirect.sql.bin; then
 fi
 
 # Add UK postcode support (centroids only, not house number level)
-if test ! -r data/gb_postcode_data.sql.gz; then
-    sudo -u ${username} wget --output-document=data/gb_postcode_data.sql.gz http://www.nominatim.org/data/gb_postcode_data.sql.gz
-fi
+#if test ! -r data/gb_postcode_data.sql.gz; then
+#    sudo -u ${username} wget --output-document=data/gb_postcode_data.sql.gz http://www.nominatim.org/data/gb_postcode_data.sql.gz
+#fi
 
 # http://stackoverflow.com/questions/8546759/how-to-check-if-a-postgres-user-exists
 # Creating the importer account in Postgres
@@ -371,10 +383,10 @@ cat > /etc/apache2/sites-available/${nominatimVHfile} << EOF
         LogLevel warn
         <Directory ${wwwNominatim}>
                 Options FollowSymLinks MultiViews
+                AddType text/html .php
                 AllowOverride None
                 Require all granted
         </Directory>
-        AddType text/html .php
 </VirtualHost>
 EOF
 
@@ -387,38 +399,38 @@ fi
 
 echo "#	$(date)	Nominatim website created"
 
-# Setting up the update process
-rm -f /home/${username}/Nominatim/settings/configuration.txt
-sudo -u ${username} ./utils/setup.php --osmosis-init
-echo "#	$(date)	Done setup"
-
-# Enabling hierarchical updates
-sudo -u ${username} ./utils/setup.php --create-functions --enable-diff-updates
-echo "#	$(date)	Done enable hierarchical updates"
-
-# Adust PostgreSQL to do disk writes
-echo "#	$(date)	Retuning PostgreSQL for disk writes"
-${nomInstalDir}/configPostgresqlDiskWrites.sh
-
-# Skip if doing a Docker install
-if [ -z "${dockerInstall}" ]; then
-    # Reload postgres assume the new config
-    echo "#	$(date)	Reloading PostgreSQL"
-    service postgresql reload
-fi
-
-# Updating Nominatim
-# Using two threads for the update will help performance, by adding this option: --index-instances 2
-# Going much beyond two threads is not really worth it because the threads interfere with each other quite a bit.
-# If your system is live and serving queries, keep an eye on response times at busy times, because too many update threads might interfere there, too.
-# Skip if doing a Docker install
-if [ -z "${dockerInstall}" ]; then
-    echo "#	$(date)	Updating PostgreSQL"
-    echo "#	sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}"
-    sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}
-fi
-
-# Done
-echo "#	$(date)	Nominatim installation completed."
-
-# End of file
+## Setting up the update process
+#rm -f /home/${username}/Nominatim/settings/configuration.txt
+#sudo -u ${username} ./utils/setup.php --osmosis-init
+#echo "#	$(date)	Done setup"
+#
+## Enabling hierarchical updates
+#sudo -u ${username} ./utils/setup.php --create-functions --enable-diff-updates
+#echo "#	$(date)	Done enable hierarchical updates"
+#
+## Adust PostgreSQL to do disk writes
+#echo "#	$(date)	Retuning PostgreSQL for disk writes"
+#${nomInstalDir}/configPostgresqlDiskWrites.sh
+#
+## Skip if doing a Docker install
+#if [ -z "${dockerInstall}" ]; then
+#    # Reload postgres assume the new config
+#    echo "#	$(date)	Reloading PostgreSQL"
+#    service postgresql reload
+#fi
+#
+## Updating Nominatim
+## Using two threads for the update will help performance, by adding this option: --index-instances 2
+## Going much beyond two threads is not really worth it because the threads interfere with each other quite a bit.
+## If your system is live and serving queries, keep an eye on response times at busy times, because too many update threads might interfere there, too.
+## Skip if doing a Docker install
+#if [ -z "${dockerInstall}" ]; then
+#    echo "#	$(date)	Updating PostgreSQL"
+#    echo "#	sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}"
+#    sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}
+#fi
+#
+## Done
+#echo "#	$(date)	Nominatim installation completed."
+#
+## End of file
