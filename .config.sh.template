@@ -57,7 +57,7 @@ osm2pgsqlcache="--osm2pgsql-cache 512"
 # Andorra (install, without wikipedia data, takes 12 minutes)
 # Test street: Andorra la Vella
 osmdatafolder=europe/
-osmdatacountry=andorra
+osmdatacountry=liechtenstein
 
 ## British Isles
 #osmdatafolder=europe/

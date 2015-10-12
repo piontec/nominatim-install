@@ -10,7 +10,7 @@
 
 # Announce start
 export DEBIAN_FRONTEND=noninteractive
-set -x
+#set -x
 echo "#	$(date)	Nominatim installation"
 
 # Ensure this script is run as root
