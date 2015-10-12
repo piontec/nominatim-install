@@ -201,9 +201,11 @@ service postgresql restart
 ## Nominatim munin
 apt-get -y install munin
 ## !! Look at the comments at the top of the nominatim_importlag file in the following and copy the setup section to a new file in: /etc/munin/plugin-conf.d/
-ln -s '/home/nominatim/Nominatim/munin/nominatim_importlag' '/etc/munin/plugins/nominatim_importlag'
-ln -s '/home/nominatim/Nominatim/munin/nominatim_query_speed' '/etc/munin/plugins/nominatim_query_speed'
-ln -s '/home/nominatim/Nominatim/munin/nominatim_nominatim_requests' '/etc/munin/plugins/nominatim_nominatim_requests'
+if [ ! -x /etc/munin/plugins/nominatim_importlag ]; then
+    ln -s '/home/nominatim/Nominatim/munin/nominatim_importlag' '/etc/munin/plugins/nominatim_importlag'
+    ln -s '/home/nominatim/Nominatim/munin/nominatim_query_speed' '/etc/munin/plugins/nominatim_query_speed'
+    ln -s '/home/nominatim/Nominatim/munin/nominatim_nominatim_requests' '/etc/munin/plugins/nominatim_nominatim_requests'
+fi
 
 
 # Needed to help postgres munin charts work
@@ -221,7 +223,7 @@ env.age_critical 86400 " >> /etc/munin/plugin-conf.d/munin-node
 
 sudo service munin-node restart
 
-sed -e "s/Allow from localhost 127.0.0.0\/8 ::1/Allow from all\nRequire all granted/" /etc/munin/apache.conf > /tmp/munin.conf
+sed -e "s/^\ *Allow from localhost 127.0.0.0\/8 ::1/Allow from all\nRequire all granted/" /etc/munin/apache.conf > /tmp/munin.con
 sudo mv /tmp/munin.conf /etc/munin/apache.conf
 sudo chown munin.munin /etc/munin/apache.conf
 sudo service apache2 restart
