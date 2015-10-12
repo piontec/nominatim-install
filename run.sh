@@ -375,6 +375,7 @@ EOF
 echo "#	$(date)	Create a VirtualHost for Apache"
 cat > /etc/apache2/sites-available/${nominatimVHfile} << EOF
 <VirtualHost *:80>
+        Alias /nominatim ${wwwNominatim}
         ServerName ${websiteurl}
         ServerAdmin ${emailcontact}
         DocumentRoot ${wwwNominatim}
@@ -392,6 +393,7 @@ EOF
 
 # Enable the VirtualHost and restart Apache
 a2ensite ${nominatimVHfile}
+a2dissite 000-default.conf
 # skip if doing a Docker install
 if [ -z "${dockerInstall}" ]; then
     service apache2 reload
