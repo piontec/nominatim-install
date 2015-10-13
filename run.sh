@@ -8,9 +8,9 @@
 
 # !! Marker #idempotent indicates limit of testing for idempotency - it has not yet been possible to make it fully idempotent.
 
+WG="wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 16"
 # Announce start
 export DEBIAN_FRONTEND=noninteractive
-set -x
 echo "#	$(date)	Nominatim installation"
 
 # Ensure this script is run as root
@@ -29,6 +29,13 @@ nomInstalDir=$(pwd)
 
 # Bomb out if something goes wrong
 set -e
+
+# Prepare the apt index; it may be practically non-existent on a fresh VM
+apt-get update > /dev/null
+
+# Install basic software
+apt-get -y install sudo wget
+
 
 ### CREDENTIALS ###
 # Name of the credentials file
@@ -86,44 +93,44 @@ osmosisBinary=`which osmosis`
 echo "Osmosis found at: ${osmosisBinary}"
 #
 ## Check Osmosis has been installed
-#if [ ! -L "${osmosisBinary}" ]; then
-#
-#    # Announce Osmosis installation
-#    # !! Osmosis uses MySQL and that needs to be configured to use character_set_server=utf8 and collation_server=utf8_unicode_ci which is currently set up (machine wide) by CycleStreets website installation.
-#    echo "#	$(date)	CycleStreets / Osmosis installation"
-#
-#    # Prepare the apt index
-#    apt-get update > /dev/null
-#
-#    # Osmosis requires java
-#    apt-get -y install openjdk-7-jre libexpat1-dev lua5.2 liblua5.2-dev
-#
-#    # Create folder
-#    mkdir -p /usr/local/osmosis
-#
-#    # wget the latest to here
-#    if [ ! -e /usr/local/osmosis/osmosis-latest.tgz ]; then
-#	wget -O /usr/local/osmosis/osmosis-latest.tgz http://dev.openstreetmap.org/~bretth/osmosis-build/osmosis-latest.tgz
-#    fi
-#
-#    # Create a folder for the new version
-#    mkdir -p /usr/local/osmosis/osmosis-latest
-#
-#    # Unpack into it
-#    tar xzf /usr/local/osmosis/osmosis-latest.tgz -C /usr/local/osmosis/osmosis-latest
-#
-#    # Remove the download archive
-#    rm -f /usr/local/osmosis/osmosis-latest.tgz
-#
-#    # Repoint current to the new install
-#    rm -f /usr/local/osmosis/current
-#
-#    # Link to it
-#    ln -s /usr/local/osmosis/osmosis-latest/bin/osmosis ${osmosisBinary}
-#
-#    # Announce completion
-#    echo "#	Completed installation of osmosis"
-#fi
+if [ ! -L "${osmosisBinary}" ]; then
+
+    # Announce Osmosis installation
+    # !! Osmosis uses MySQL and that needs to be configured to use character_set_server=utf8 and collation_server=utf8_unicode_ci which is currently set up (machine wide) by CycleStreets website installation.
+    echo "#	$(date)	CycleStreets / Osmosis installation"
+
+    # Prepare the apt index
+    apt-get update > /dev/null
+
+    # Osmosis requires java
+    apt-get -y install openjdk-7-jre libexpat1-dev lua5.2 liblua5.2-dev
+
+    # Create folder
+    mkdir -p /usr/local/osmosis
+
+    # get the latest to here
+    if [ ! -e /usr/local/osmosis/osmosis-latest.tgz ]; then
+	$WG -O /usr/local/osmosis/osmosis-latest.tgz http://dev.openstreetmap.org/~bretth/osmosis-build/osmosis-latest.tgz
+    fi
+
+    # Create a folder for the new version
+    mkdir -p /usr/local/osmosis/osmosis-latest
+
+    # Unpack into it
+    tar xzf /usr/local/osmosis/osmosis-latest.tgz -C /usr/local/osmosis/osmosis-latest
+
+    # Remove the download archive
+    rm -f /usr/local/osmosis/osmosis-latest.tgz
+
+    # Repoint current to the new install
+    rm -f /usr/local/osmosis/current
+
+    # Link to it
+    ln -s /usr/local/osmosis/osmosis-latest/bin/osmosis ${osmosisBinary}
+
+    # Announce completion
+    echo "#	Completed installation of osmosis"
+fi
 #
 
 ### MAIN PROGRAM ###
@@ -161,19 +168,13 @@ else
     echo "#	Nominatim user ${username} created"
 fi
 
-# Prepare the apt index; it may be practically non-existent on a fresh VM
-apt-get update > /dev/null
-
-# Install basic software
-apt-get -y install sudo wget
-
 # Install software
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Ubuntu.2FDebian
 apt-get -y install build-essential libxml2-dev libgeos-dev libpq-dev libbz2-dev libtool automake libproj-dev
 apt-get -y install libboost-dev libboost-system-dev libboost-filesystem-dev libboost-thread-dev
 # Note: osmosis is removed from this next line (compared to wiki page) as it is installed directly
-apt-get -y install gcc proj-bin libgeos-c1 osmosis libgeos++-dev
-# apt-get -y install gcc proj-bin libgeos-c1 libgeos++-dev
+#apt-get -y install gcc proj-bin libgeos-c1 osmosis libgeos++-dev
+apt-get -y install gcc proj-bin libgeos-c1 libgeos++-dev
 apt-get -y install php5 php-pear php5-pgsql php5-json php-db
 apt-get -y install postgresql postgis postgresql-contrib postgresql-9.3-postgis-2.1 postgresql-server-dev-9.3
 apt-get -y install libprotobuf-c0-dev protobuf-c-compiler
@@ -251,7 +252,7 @@ cd /home/${username}
 #fi
 
 echo "# Fetching nominatim"
-wget http://www.nominatim.org/release/Nominatim-2.4.0.tar.bz2
+$WG http://www.nominatim.org/release/Nominatim-2.4.0.tar.bz2
 tar xvf Nominatim-2.4.0.tar.bz2
 cd Nominatim
 
@@ -304,10 +305,10 @@ echo "#	$(date)	Wikipedia data"
 # These large files are optional, and if present take a long time to process by ./utils/setup.php later in the script.
 # Download them if wanted by config and they are not already present.
 if test -n "${includeWikipedia}" -a ! -r data/wikipedia_article.sql.bin; then
-    sudo -u ${username} wget --output-document=data/wikipedia_article.sql.bin http://www.nominatim.org/data/wikipedia_article.sql.bin
+    sudo -u ${username} ${WG} --output-document=data/wikipedia_article.sql.bin http://www.nominatim.org/data/wikipedia_article.sql.bin
 fi
 if test -n "${includeWikipedia}" -a ! -r data/wikipedia_redirect.sql.bin; then
-    sudo -u ${username} wget --output-document=data/wikipedia_redirect.sql.bin http://www.nominatim.org/data/wikipedia_redirect.sql.bin
+    sudo -u ${username} ${WG} --output-document=data/wikipedia_redirect.sql.bin http://www.nominatim.org/data/wikipedia_redirect.sql.bin
 fi
 
 # http://stackoverflow.com/questions/8546759/how-to-check-if-a-postgres-user-exists
@@ -332,10 +333,10 @@ sudo -u ${username} mkdir -p data/${osmdatafolder}
 # Download OSM data if not already present
 if test ! -r ${osmdatapath}; then
 	echo "#	$(date)	Download OSM data"
-	sudo -u ${username} wget --output-document=${osmdatapath} ${osmdataurl}
+	sudo -u ${username} ${WG} --output-document=${osmdatapath} ${osmdataurl}
 	
 	# Verify with an MD5 match
-	sudo -u ${username} wget --output-document=${osmdatapath}.md5 ${osmdataurl}.md5
+	sudo -u ${username} ${WG} --output-document=${osmdatapath}.md5 ${osmdataurl}.md5
 	if [ "$(md5sum ${osmdatapath} | awk '{print $1;}')" != "$(cat ${osmdatapath}.md5 | awk '{print $1;}')" ]; then
 		echo "#	The md5 checksum for osmdatapath: ${osmdatapath} does not match, stopping."
 		exit 1
