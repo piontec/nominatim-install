@@ -81,7 +81,7 @@ else
     osmupdates=${geofabrikUrl}${osmdatafolder}${osmdatacountry}-updates
 fi
 
-echo "# downloading data: $(osmdatafilename)"
+echo "# downloading data: ${osmdatafilename}"
 
 # Where the downloaded data is stored
 osmdatapath=data/${osmdatafolder}${osmdatafilename}
