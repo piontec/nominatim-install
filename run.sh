@@ -99,9 +99,6 @@ if [ ! -L "${osmosisBinary}" ]; then
     # !! Osmosis uses MySQL and that needs to be configured to use character_set_server=utf8 and collation_server=utf8_unicode_ci which is currently set up (machine wide) by CycleStreets website installation.
     echo "#	$(date)	CycleStreets / Osmosis installation"
 
-    # Prepare the apt index
-    apt-get update > /dev/null
-
     # Osmosis requires java
     apt-get -y install openjdk-7-jre libexpat1-dev lua5.2 liblua5.2-dev
 
