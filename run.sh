@@ -413,38 +413,38 @@ fi
 
 echo "#	$(date)	Nominatim website created"
 
-## Setting up the update process
-#rm -f /home/${username}/Nominatim/settings/configuration.txt
-#sudo -u ${username} ./utils/setup.php --osmosis-init
-#echo "#	$(date)	Done setup"
-#
-## Enabling hierarchical updates
-#sudo -u ${username} ./utils/setup.php --create-functions --enable-diff-updates
-#echo "#	$(date)	Done enable hierarchical updates"
-#
+# Setting up the update process
+rm -f /home/${username}/Nominatim/settings/configuration.txt
+sudo -u ${username} ./utils/setup.php --osmosis-init
+echo "#	$(date)	Done setup"
+
+# Enabling hierarchical updates
+sudo -u ${username} ./utils/setup.php --create-functions --enable-diff-updates
+echo "#	$(date)	Done enable hierarchical updates"
+
 ## Adust PostgreSQL to do disk writes
-#echo "#	$(date)	Retuning PostgreSQL for disk writes"
-#${nomInstalDir}/configPostgresqlDiskWrites.sh
-#
-## Skip if doing a Docker install
-#if [ -z "${dockerInstall}" ]; then
-#    # Reload postgres assume the new config
-#    echo "#	$(date)	Reloading PostgreSQL"
-#    service postgresql reload
-#fi
-#
+echo "#	$(date)	Retuning PostgreSQL for disk writes"
+${nomInstalDir}/configPostgresqlDiskWrites.sh
+
+# Skip if doing a Docker install
+if [ -z "${dockerInstall}" ]; then
+    # Reload postgres assume the new config
+    echo "#	$(date)	Reloading PostgreSQL"
+    service postgresql reload
+fi
+
 ## Updating Nominatim
 ## Using two threads for the update will help performance, by adding this option: --index-instances 2
 ## Going much beyond two threads is not really worth it because the threads interfere with each other quite a bit.
 ## If your system is live and serving queries, keep an eye on response times at busy times, because too many update threads might interfere there, too.
 ## Skip if doing a Docker install
-#if [ -z "${dockerInstall}" ]; then
-#    echo "#	$(date)	Updating PostgreSQL"
-#    echo "#	sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}"
-#    sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}
-#fi
+if [ -z "${dockerInstall}" ]; then
+    echo "#	$(date)	Updating PostgreSQL"
+    echo "#	sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}"
+    sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}
+fi
 #
 ## Done
-#echo "#	$(date)	Nominatim installation completed."
+echo "#	$(date)	Nominatim installation completed."
 #
 ## End of file
