@@ -9,6 +9,7 @@
 # !! Marker #idempotent indicates limit of testing for idempotency - it has not yet been possible to make it fully idempotent.
 
 WG="wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 16"
+NOM_UP_LOGDIR=/var/log/nominatim
 # Announce start
 export DEBIAN_FRONTEND=noninteractive
 echo "#	$(date)	Nominatim installation"
@@ -178,7 +179,7 @@ apt-get -y install libprotobuf-c0-dev protobuf-c-compiler
 
 # Additional packages
 # bc is needed in configPostgresql.sh
-apt-get -y install bc apache2 git autoconf-archive
+apt-get -y install bc apache2 git autoconf-archive supervisor
 
 ## Install gdal, needed for US Tiger house number data
 ## !! More steps need to be added to this script to support that US data
@@ -436,10 +437,23 @@ fi
 ## Going much beyond two threads is not really worth it because the threads interfere with each other quite a bit.
 ## If your system is live and serving queries, keep an eye on response times at busy times, because too many update threads might interfere there, too.
 ## Skip if doing a Docker install
-if [ -z "${dockerInstall}" ]; then
-    echo "#	$(date)	Updating PostgreSQL"
-    echo "#	sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}"
-    sudo -u ${username} ./utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}
+if [ -z "${dockerInstall}" ]; then 
+    echo "#	Preparing supervisor for update of Nominatim data in PostgreSQL"
+    if [ ! -d $NOM_UP_LOGDIR ]; then
+        mkdir -p $NOM_UP_LOGDIR
+    fi
+    cat > /etc/supervisor/conf.d/nominatim-up.conf << EOF
+[program:nominatim-up]
+command=/home/${username}/Nominatim/utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}
+directory=/home/${username}/Nominatim
+autostart=true
+autorestart=true
+startretries=3
+stderr_logfile=${NOM_UP_LOGDIR}/update.err.log
+stdout_logfile=${NOM_UP_LOGDIR}/update.out.log
+user=nominatim
+EOF 
+service supervisor restart 
 fi
 #
 ## Done
