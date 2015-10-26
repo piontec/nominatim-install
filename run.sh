@@ -12,6 +12,7 @@ set -x
 
 WG="wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 16"
 NOM_UP_LOGDIR=/var/log/nominatim
+VER=2.4.0
 # Announce start
 export DEBIAN_FRONTEND=noninteractive
 echo "#	$(date)	Nominatim installation"
@@ -226,14 +227,15 @@ cd /home/${username}
 #fi
 
 echo "# Fetching nominatim"
-if [ ! -f Nominatim-2.4.0.tar.bz2 ]; then
-   $WG http://www.nominatim.org/release/Nominatim-2.4.0.tar.bz2
+if [ ! -f Nominatim-${VER}.tar.bz2 ]; then
+   $WG http://www.nominatim.org/release/Nominatim-${VER}.tar.bz2
 else 
-   rm -rf Nominatim-2.4.0
+   rm -rf Nominatim-${VER}
 fi
-tar xvf Nominatim-2.4.0.tar.bz2
-chown -R ${username} Nominatim-2.4.0/
-cd Nominatim-2.4.0
+tar xvf Nominatim-${VER}.tar.bz2
+chown -R ${username} Nominatim-${VER}/
+ln -s Nominatim-${VER} Nominatim
+cd Nominatim
 
 ## Nominatim munin
 apt-get -y install munin
