@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Script to install Nominatim on Ubuntu
 # Tested on 14.04 (View Ubuntu version using 'lsb_release -a') using Postgres 9.3
 #
@@ -467,8 +467,9 @@ startretries=3
 stderr_logfile=${NOM_UP_LOGDIR}/update.err.log
 stdout_logfile=${NOM_UP_LOGDIR}/update.out.log
 user=nominatim
-EOF 
-service supervisor restart 
+EOF
+ 
+    service supervisor restart 
 fi
 #
 ## Done
