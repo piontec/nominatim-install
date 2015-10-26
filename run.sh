@@ -8,7 +8,7 @@
 
 # !! Marker #idempotent indicates limit of testing for idempotency - it has not yet been possible to make it fully idempotent.
 
-set -x
+#set -x
 
 WG="wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 16"
 NOM_UP_LOGDIR=/var/log/nominatim
