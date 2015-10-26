@@ -8,6 +8,8 @@
 
 # !! Marker #idempotent indicates limit of testing for idempotency - it has not yet been possible to make it fully idempotent.
 
+set -x
+
 WG="wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 16"
 NOM_UP_LOGDIR=/var/log/nominatim
 # Announce start
@@ -90,9 +92,7 @@ osmdatapath=data/${osmdatafolder}${osmdatafilename}
 ## Osmosis
 # Rather than the packaged version get the latest
 #osmosisBinary=/usr/local/bin/osmosis
-osmosisBinary=`which osmosis`
-echo "Osmosis found at: ${osmosisBinary}"
-#
+
 ## Check Osmosis has been installed
 if [ ! -L "${osmosisBinary}" ]; then
 
@@ -107,7 +107,7 @@ if [ ! -L "${osmosisBinary}" ]; then
     mkdir -p /usr/local/osmosis
 
     # get the latest to here
-    if [ ! -e /usr/local/osmosis/osmosis-latest.tgz ]; then
+    if [ ! -f /usr/local/osmosis/osmosis-latest.tgz ]; then
 	$WG -O /usr/local/osmosis/osmosis-latest.tgz http://dev.openstreetmap.org/~bretth/osmosis-build/osmosis-latest.tgz
     fi
 
@@ -124,13 +124,19 @@ if [ ! -L "${osmosisBinary}" ]; then
     rm -f /usr/local/osmosis/current
 
     # Link to it
-    ln -s /usr/local/osmosis/osmosis-latest/bin/osmosis ${osmosisBinary}
+    if [ -x /usr/local/bin/osmosis ]; then
+        rm -f /usr/local/bin/osmosis
+    fi
+    ln -s /usr/local/osmosis/osmosis-latest/bin/osmosis /usr/local/bin/
 
     # Announce completion
     echo "#	Completed installation of osmosis"
 fi
 #
 
+osmosisBinary=`which osmosis`
+echo "Osmosis found at: ${osmosisBinary}"
+#
 ### MAIN PROGRAM ###
 
 # Ensure the system locale is UTF-8, to avoid Postgres install failure
@@ -197,10 +203,42 @@ fi
 echo "#	$(date)	Restarting PostgreSQL"
 service postgresql restart
 
+# We will use the Nominatim user's homedir for the installation, so switch to that
+cd /home/${username}
+
+# First Installation
+# http://wiki.openstreetmap.org/wiki/Nominatim/Installation#First_Installation
+
+# Get Nominatim software
+# http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Obtaining_the_Latest_Version
+#if [ ! -d "/home/${username}/Nominatim/.git" ]; then
+#    # Install
+#    echo "#	$(date)	Installing Nominatim software"
+#    sudo -u ${username} git clone --recursive https://github.com/twain47/Nominatim.git
+#    cd Nominatim
+#else
+#    # Update
+#    echo "#	$(date)	Updating Nominatim software"
+#    cd Nominatim
+#    sudo -u ${username} git pull
+#    # Some of the schema is created by osm2pgsql which is updated by:
+#    sudo -u ${username} git submodule update --init
+#fi
+
+echo "# Fetching nominatim"
+if [ ! -f Nominatim-2.4.0.tar.bz2 ]; then
+   $WG http://www.nominatim.org/release/Nominatim-2.4.0.tar.bz2
+else 
+   rm -rf Nominatim-2.4.0
+fi
+tar xvf Nominatim-2.4.0.tar.bz2
+chown -R ${username} Nominatim-2.4.0/
+cd Nominatim-2.4.0
+
 ## Nominatim munin
 apt-get -y install munin
 ## !! Look at the comments at the top of the nominatim_importlag file in the following and copy the setup section to a new file in: /etc/munin/plugin-conf.d/
-if [ ! -x /etc/munin/plugins/nominatim_importlag ]; then
+if [ ! -L /etc/munin/plugins/nominatim_importlag ]; then
     ln -s '/home/nominatim/Nominatim/munin/nominatim_importlag' '/etc/munin/plugins/nominatim_importlag'
     ln -s '/home/nominatim/Nominatim/munin/nominatim_query_speed' '/etc/munin/plugins/nominatim_query_speed'
     ln -s '/home/nominatim/Nominatim/munin/nominatim_nominatim_requests' '/etc/munin/plugins/nominatim_nominatim_requests'
@@ -227,32 +265,7 @@ sudo mv /tmp/munin.conf /etc/munin/apache.conf
 sudo chown munin.munin /etc/munin/apache.conf
 sudo service apache2 restart
 
-# We will use the Nominatim user's homedir for the installation, so switch to that
-cd /home/${username}
 
-# First Installation
-# http://wiki.openstreetmap.org/wiki/Nominatim/Installation#First_Installation
-
-# Get Nominatim software
-# http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Obtaining_the_Latest_Version
-#if [ ! -d "/home/${username}/Nominatim/.git" ]; then
-#    # Install
-#    echo "#	$(date)	Installing Nominatim software"
-#    sudo -u ${username} git clone --recursive https://github.com/twain47/Nominatim.git
-#    cd Nominatim
-#else
-#    # Update
-#    echo "#	$(date)	Updating Nominatim software"
-#    cd Nominatim
-#    sudo -u ${username} git pull
-#    # Some of the schema is created by osm2pgsql which is updated by:
-#    sudo -u ${username} git submodule update --init
-#fi
-
-echo "# Fetching nominatim"
-$WG http://www.nominatim.org/release/Nominatim-2.4.0.tar.bz2
-tar xvf Nominatim-2.4.0.tar.bz2
-cd Nominatim
 
 # Compile Nominatim software
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Compiling_the_Source
