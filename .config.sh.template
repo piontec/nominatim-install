@@ -2,6 +2,9 @@
 # Contains credentials
 # This is a template file, save as simply .config.sh (amd make executable) and set your own values below.
 
+# base installation dir
+BASE_DIR=/opt/nominatim/
+
 # System language
 utf8Language=en_US
 
@@ -27,7 +30,7 @@ nominatimVHfile=400-nominatim.conf
 includeWikipedia=yes
 
 # Set up the website for use with Apache
-wwwNominatim=/websites/www/nominatim
+wwwNominatim=${BASE_DIR}/www/nominatim
 
 ### SETTINGS ###
 # Define either a full planet, or an extract by commenting in the relevant sections

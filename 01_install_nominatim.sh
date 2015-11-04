@@ -6,13 +6,40 @@
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation
 # Synced with: Latest revision as of 21:43, 21 May 2015
 
-# !! Marker #idempotent indicates limit of testing for idempotency - it has not yet been possible to make it fully idempotent.
 
 #set -x
 
-WG="wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 16"
-NOM_UP_LOGDIR=/var/log/nominatim
 VER=2.4.0
+PG_VER=9.3
+
+### CREDENTIALS ###
+# Name of the credentials file
+configFile=.config.sh
+
+# Generate your own credentials file by copying from .config.sh.template
+if [ ! -e ./${configFile} ]; then
+    echo "#	The config file, ${configFile}, does not exist - copy your own based on the ${configFile}.template file." 1>&2
+    exit 1
+fi 
+
+# Load the credentials
+. ./${configFile} 
+
+echo "Changing dir to $BASE_DIR"
+if [ ! -d $BASE_DIR ]; then
+    mkdir -p $BASE_DIR
+fi 
+
+nomInstalDir=$BASE_DIR/install
+if [ ! -d $nomInstalDir ]; then
+	mkdir $nomInstalDir
+fi
+
+cp ./config*.sh $nomInstalDir
+cd $BASE_DIR
+
+WG="wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 16"
+NOM_UP_LOGDIR=$BASE_DIR/log/nominatim
 # Announce start
 export DEBIAN_FRONTEND=noninteractive
 echo "#	$(date)	Nominatim installation"
@@ -28,9 +55,6 @@ if grep --quiet docker /proc/1/cgroup; then
     dockerInstall=1
 fi
 
-# Bind current directory
-nomInstalDir=$(pwd)
-
 # Bomb out if something goes wrong
 set -e
 
@@ -39,20 +63,6 @@ apt-get update > /dev/null
 
 # Install basic software
 apt-get -y install sudo wget
-
-
-### CREDENTIALS ###
-# Name of the credentials file
-configFile=.config.sh
-
-# Generate your own credentials file by copying from .config.sh.template
-if [ ! -e ./${configFile} ]; then
-    echo "#	The config file, ${configFile}, does not exist - copy your own based on the ${configFile}.template file." 1>&2
-    exit 1
-fi
-
-# Load the credentials
-. ./${configFile}
 
 # Check either planet or extract selected
 if [ -z "${planetUrl}" -a -z "${geofabrikUrl}" ]; then
@@ -130,6 +140,8 @@ if [ ! -L "${osmosisBinary}" ]; then
     fi
     ln -s /usr/local/osmosis/osmosis-latest/bin/osmosis /usr/local/bin/
 
+    cp -a /usr/local/osmosis/ $BASE_DIR
+
     # Announce completion
     echo "#	Completed installation of osmosis"
 fi
@@ -169,7 +181,7 @@ else
     fi
 
     # Create the nominatim user
-    useradd -m -p $password $username
+    useradd -b $BASE_DIR -m -p $password $username
     echo "#	Nominatim user ${username} created"
 fi
 
@@ -184,6 +196,10 @@ apt-get -y install php5 php-pear php5-pgsql php5-json php-db
 apt-get -y install postgresql postgis postgresql-contrib postgresql-9.3-postgis-2.1 postgresql-server-dev-9.3
 apt-get -y install libprotobuf-c0-dev protobuf-c-compiler
 
+#change postgresql data dir
+/usr/bin/pg_dropcluster --stop $PG_VER main || true
+/usr/bin/pg_createcluster -d $BASE_DIR/postgres --start $PG_VER main
+
 # Additional packages
 # bc is needed in configPostgresql.sh
 apt-get -y install bc apache2 git autoconf-archive supervisor
@@ -197,7 +213,7 @@ apt-get -y install bc apache2 git autoconf-archive supervisor
 if [ -z "${dockerInstall}" ]; then
     # Tuning PostgreSQL
     echo "#	$(date)	Tuning PostgreSQL"
-    ./configPostgresql.sh ${postgresconfigmode} n ${override_maintenance_work_mem}
+    ${nomInstalDir}/configPostgresql.sh ${postgresconfigmode} n ${override_maintenance_work_mem}
 fi
 
 # Restart postgres assume the new config
@@ -205,7 +221,8 @@ echo "#	$(date)	Restarting PostgreSQL"
 service postgresql restart
 
 # We will use the Nominatim user's homedir for the installation, so switch to that
-cd /home/${username}
+NOM_HOME=$BASE_DIR/${username}
+cd $NOM_HOME
 
 # First Installation
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#First_Installation
@@ -241,9 +258,9 @@ cd Nominatim
 apt-get -y install munin
 ## !! Look at the comments at the top of the nominatim_importlag file in the following and copy the setup section to a new file in: /etc/munin/plugin-conf.d/
 if [ ! -L /etc/munin/plugins/nominatim_importlag ]; then
-    ln -s '/home/nominatim/Nominatim/munin/nominatim_importlag' '/etc/munin/plugins/nominatim_importlag'
-    ln -s '/home/nominatim/Nominatim/munin/nominatim_query_speed' '/etc/munin/plugins/nominatim_query_speed'
-    ln -s '/home/nominatim/Nominatim/munin/nominatim_nominatim_requests' '/etc/munin/plugins/nominatim_nominatim_requests'
+    ln -s "/${NOM_HOME}/Nominatim/munin/nominatim_importlag" '/etc/munin/plugins/nominatim_importlag'
+    ln -s "/${NOM_HOME}/Nominatim/munin/nominatim_query_speed" '/etc/munin/plugins/nominatim_query_speed'
+    ln -s "/${NOM_HOME}/Nominatim/munin/nominatim_nominatim_requests" '/etc/munin/plugins/nominatim_nominatim_requests'
 fi
 
 
@@ -280,7 +297,7 @@ sudo -u ${username} make
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Customization_of_the_Installation
 
 # Add local Nominatim settings
-localNominatimSettings=/home/${username}/Nominatim/settings/local.php
+localNominatimSettings=/${NOM_HOME}/Nominatim/settings/local.php
 cat > ${localNominatimSettings} << EOF
 <?php
    // Paths
@@ -336,9 +353,9 @@ sudo -u postgres psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='${web
 
 # Nominatim module reading permissions
 echo "#	$(date)	Nominatim module reading permissions"
-chmod +x "/home/${username}"
-chmod +x "/home/${username}/Nominatim"
-chmod +x "/home/${username}/Nominatim/module"
+chmod +x "$NOM_HOME"
+chmod +x "$NOM_HOME/Nominatim"
+chmod +x "$NOM_HOME/Nominatim/module"
 
 # Ensure download folder exists
 sudo -u ${username} mkdir -p data/${osmdatafolder}
@@ -366,11 +383,11 @@ sudo -u postgres psql postgres -c "DROP DATABASE IF EXISTS nominatim"
 
 # Import and index main OSM data
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Import_and_index_OSM_data
-cd /home/${username}/Nominatim/
+cd ${NOM_HOME}/Nominatim/
 echo "#	$(date)	Starting import and index OSM data"
-echo "#	sudo -u ${username} ./utils/setup.php ${osm2pgsqlcache} --osm-file /home/${username}/Nominatim/${osmdatapath} --all 2>&1 | tee setup.log"
+echo "#	sudo -u ${username} ./utils/setup.php ${osm2pgsqlcache} --osm-file ${NOM_HOME}/Nominatim/${osmdatapath} --all 2>&1 | tee setup.log"
 # Should automatically use one fewer than the number of threads: https://github.com/twain47/Nominatim/blob/master/utils/setup.php#L67
-sudo -u ${username} ./utils/setup.php ${osm2pgsqlcache} --osm-file /home/${username}/Nominatim/${osmdatapath} --all 2>&1 | tee setup.log
+sudo -u ${username} ./utils/setup.php ${osm2pgsqlcache} --osm-file ${NOM_HOME}/Nominatim/${osmdatapath} --all 2>&1 | tee setup.log
 # Note: if that step gets interrupted for some reason it can be resumed using:
 # If the reported rank is 26 or higher, you can also safely add --index-noanalyse.
 # sudo -u ${username} ./utils/setup.php --index --index-noanalyse --create-search-indices
@@ -428,7 +445,7 @@ fi
 echo "#	$(date)	Nominatim website created"
 
 # Setting up the update process
-rm -f /home/${username}/Nominatim/settings/configuration.txt
+rm -f ${NOM_HOME}/Nominatim/settings/configuration.txt
 sudo -u ${username} ./utils/setup.php --osmosis-init
 echo "#	$(date)	Done setup"
 
@@ -446,33 +463,33 @@ if [ -z "${dockerInstall}" ]; then
     echo "#	$(date)	Reloading PostgreSQL"
     service postgresql reload
 fi
-
-## Updating Nominatim
-## Using two threads for the update will help performance, by adding this option: --index-instances 2
-## Going much beyond two threads is not really worth it because the threads interfere with each other quite a bit.
-## If your system is live and serving queries, keep an eye on response times at busy times, because too many update threads might interfere there, too.
-## Skip if doing a Docker install
-if [ -z "${dockerInstall}" ]; then 
-    echo "#	Preparing supervisor for update of Nominatim data in PostgreSQL"
-    if [ ! -d $NOM_UP_LOGDIR ]; then
-        mkdir -p $NOM_UP_LOGDIR
-    fi
-    cat > /etc/supervisor/conf.d/nominatim-up.conf << EOF
-[program:nominatim-up]
-command=/home/${username}/Nominatim/utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}
-directory=/home/${username}/Nominatim
-autostart=true
-autorestart=true
-startretries=3
-stderr_logfile=${NOM_UP_LOGDIR}/update.err.log
-stdout_logfile=${NOM_UP_LOGDIR}/update.out.log
-user=nominatim
-EOF
- 
-    service supervisor restart 
-fi
-#
-## Done
 echo "#	$(date)	Nominatim installation completed."
+
+### Updating Nominatim
+### Using two threads for the update will help performance, by adding this option: --index-instances 2
+### Going much beyond two threads is not really worth it because the threads interfere with each other quite a bit.
+### If your system is live and serving queries, keep an eye on response times at busy times, because too many update threads might interfere there, too.
+### Skip if doing a Docker install
+#if [ -z "${dockerInstall}" ]; then 
+#    echo "#	Preparing supervisor for update of Nominatim data in PostgreSQL"
+#    if [ ! -d $NOM_UP_LOGDIR ]; then
+#        mkdir -p $NOM_UP_LOGDIR
+#    fi
+#    cat > /etc/supervisor/conf.d/nominatim-up.conf << EOF
+#[program:nominatim-up]
+#command=${NOM_HOME}/Nominatim/utils/update.php --import-osmosis-all --no-npi ${osm2pgsqlcache}
+#directory=${NOM_HOME}/Nominatim
+#autostart=true
+#autorestart=true
+#startretries=3
+#stderr_logfile=${NOM_UP_LOGDIR}/update.err.log
+#stdout_logfile=${NOM_UP_LOGDIR}/update.out.log
+#user=nominatim
+#EOF
+# 
+#    service supervisor restart 
+#fi
+##
+## Done
 #
 ## End of file
