@@ -58,6 +58,13 @@ fi
 # Bomb out if something goes wrong
 set -e
 
+# Ensure the system locale is UTF-8, to avoid Postgres install failure
+echo "LANG=${utf8Language}.UTF-8" > /etc/default/locale
+echo "LC_ALL=${utf8Language}.UTF-8" >> /etc/default/locale
+sudo locale-gen ${utf8Language} ${utf8Language}.UTF-8
+#dpkg-reconfigure locales
+update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
 # Prepare the apt index; it may be practically non-existent on a fresh VM
 apt-get update > /dev/null
 
@@ -151,12 +158,6 @@ osmosisBinary=`which osmosis`
 echo "Osmosis found at: ${osmosisBinary}"
 #
 ### MAIN PROGRAM ###
-
-# Ensure the system locale is UTF-8, to avoid Postgres install failure
-echo "LANG=${utf8Language}.UTF-8" > /etc/default/locale
-echo "LC_ALL=${utf8Language}.UTF-8" >> /etc/default/locale
-sudo locale-gen ${utf8Language} ${utf8Language}.UTF-8
-dpkg-reconfigure locales
 
 # Ensure there is a nominatim user account
 if id -u ${username} >/dev/null 2>&1; then
