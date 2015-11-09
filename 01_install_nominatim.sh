@@ -381,6 +381,7 @@ fi
 # Remove any pre-existing nominatim database
 echo "#	$(date)	Remove any pre-existing nominatim database"
 sudo -u postgres psql postgres -c "DROP DATABASE IF EXISTS nominatim"
+sudo -u postgres psql -f ${nomInstalDir}/force-utf8.sql
 
 # Import and index main OSM data
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Import_and_index_OSM_data
