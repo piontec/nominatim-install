@@ -15,6 +15,7 @@ PG_VER=9.3
 ### CREDENTIALS ###
 # Name of the credentials file
 configFile=.config.sh
+sql_force=force-utf8.sql
 
 # Generate your own credentials file by copying from .config.sh.template
 if [ ! -e ./${configFile} ]; then
@@ -36,6 +37,7 @@ if [ ! -d $nomInstalDir ]; then
 fi
 
 cp ./config*.sh $nomInstalDir
+cp ./${sql_force} $nomInstalDir
 cd $BASE_DIR
 
 WG="wget --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 16"
@@ -381,7 +383,7 @@ fi
 # Remove any pre-existing nominatim database
 echo "#	$(date)	Remove any pre-existing nominatim database"
 sudo -u postgres psql postgres -c "DROP DATABASE IF EXISTS nominatim"
-sudo -u postgres psql -f ${nomInstalDir}/force-utf8.sql
+sudo -u postgres psql -f ${nomInstalDir}/${sql_force}
 
 # Import and index main OSM data
 # http://wiki.openstreetmap.org/wiki/Nominatim/Installation#Import_and_index_OSM_data
